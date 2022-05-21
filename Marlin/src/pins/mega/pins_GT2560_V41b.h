@@ -31,7 +31,10 @@
     #define BTN_EN1                         21
 #endif
 #ifdef REPRAP_DISCOUNT_FULL_GRAPHIC_SMART_CONTROLLER
-    #define BTN_EN2                          5
+    #define BTN_EN2                         5
+#endif
+#ifdef REPRAP_DISCOUNT_FULL_GRAPHIC_SMART_CONTROLLER
+    #define LCD_PINS_RS                     36
 #endif
 
 
