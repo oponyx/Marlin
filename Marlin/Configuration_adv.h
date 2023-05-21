@@ -1683,7 +1683,12 @@
   //#define NO_SD_AUTOSTART                 // Remove auto#.g file support completely to save some Flash, SRAM
   #define MENU_ADDAUTOSTART                 // Add a menu option to run auto#.g files
 
+<<<<<<< HEAD
   #define BROWSE_MEDIA_ON_INSERT            // Open the file browser when media is inserted
+=======
+  //#define ONE_CLICK_PRINT                 // Prompt to print the newest file on inserted media
+  //#define BROWSE_MEDIA_ON_INSERT          // Open the file browser when media is inserted
+>>>>>>> bugfix-2.1.x
 
   //#define MEDIA_MENU_AT_TOP               // Force the media menu to be listed on the top of the main menu
 
