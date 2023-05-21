@@ -1,3 +1,36 @@
+<h1 align="center">Marlin Custom Firmware for Geeetech A10M</h1>
+
+Enabled:<br>
+PID_AUTOTUNE_MENU<br>
+BLTOUCH<br>
+RESTORE_LEVELING_AFTER_G28<br>
+LCD_BED_LEVELING<br>
+LCD_BED_TRAMMING<br>
+Z_SAFE_HOMING<br>
+EEPROM_SETTINGS <br>
+Bi-linear 3x3 points matrix bed auto level<br>
+SPINDLE_FEATURE<br>
+LIN_ADVANCE<br>
+XY_FREQUENCY_LIMIT<br>
+MENU_ADDAUTOSTART<br>
+BROWSE_MEDIA_ON_INSERT<br>
+SDCARD_SORT_ALPHA<br>
+SCROLL_LONG_FILENAMES<br>
+<br>
+Set: <br>
+BED PID AUTOTUNED from printer<br>
+HOTEND AUTOTUNE from printer<br>
+DELAY_BEFORE_PROBING 100<br>
+Z_MAX_POS 250<br>
+FILAMENT_RUNOUT_SCRIPT "M600 T%c"<br>
+E0_AUTO_FAN_PIN 9<br>
+E1_AUTO_FAN_PIN 9<br>
+E2_AUTO_FAN_PIN 9<br>
+BLTOUCH_DELAY 200<br>
+BLTOUCH_HS_EXTRA_CLEARANCE    0<br>
+XY_FREQUENCY_LIMIT<br>
+
+
 <p align="center"><img src="buildroot/share/pixmaps/logo/marlin-outrun-nf-500.png" height="250" alt="MarlinFirmware's logo" /></p>
 
 <h1 align="center">Marlin 3D Printer Firmware</h1>
