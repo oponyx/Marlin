@@ -24,7 +24,7 @@
 #include "env_validate.h"
 
 #if HAS_MULTI_HOTEND || E_STEPPERS > 1
-  #error "Anet ET4 only supports one hotend / E-stepper. Comment out this line to continue."
+  #error "Anet ET4 only supports 1 hotend / E stepper."
 #endif
 
 #ifndef BOARD_INFO_NAME
@@ -64,7 +64,7 @@
 // Z Probe
 //
 #if ENABLED(BLTOUCH)
-  #error "You will need to use 24V to 5V converter and remove one resistor and capacitor from the motherboard. See https://github.com/davidtgbe/Marlin/blob/bugfix-2.0.x/docs/Tutorials/bltouch-en.md for more information. Comment out this line to proceed at your own risk."
+  #error "You will need to use 24V to 5V converter and remove one resistor and capacitor from the motherboard. See https://bit.ly/3xg9cXO for more information. Comment out this line to proceed at your own risk."
   #define SERVO0_PIN                        PC3
 #elif !defined(Z_MIN_PROBE_PIN)
   #define Z_MIN_PROBE_PIN                   PC3
@@ -123,7 +123,7 @@
 //
 // Fans
 //
-#define FAN_PIN                             PE3   // Layer fan
+#define FAN0_PIN                            PE3   // Layer fan
 #define FAN1_PIN                            PE1   // Hotend fan
 
 #ifndef E0_AUTO_FAN_PIN
@@ -195,17 +195,18 @@
 //
 // SD Card
 //
-//#define SDIO_SUPPORT
+//#define ONBOARD_SDIO
 
 #ifndef SDCARD_CONNECTION
   #define SDCARD_CONNECTION         CUSTOM_CABLE
 #endif
 
-#if ENABLED(SDSUPPORT)
+#if HAS_MEDIA
 
-  #if DISABLED(SDIO_SUPPORT)
+  #if DISABLED(ONBOARD_SDIO)
     #define SOFTWARE_SPI
     #define SDSS                            PC11
+    #define SD_SS_PIN                       SDSS
     #define SD_SCK_PIN                      PC12
     #define SD_MISO_PIN                     PC8
     #define SD_MOSI_PIN                     PD2

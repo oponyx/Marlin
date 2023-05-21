@@ -32,6 +32,10 @@
 
 #include "../../MarlinCore.h"
 
+#if ENABLED(LCD_ENDSTOP_TEST)
+  #include "../../module/endstops.h"
+#endif
+
 #if HAS_FILAMENT_SENSOR
   #include "../../feature/runout.h"
 #endif
@@ -55,9 +59,13 @@
   #include "../../libs/buzzer.h"
 #endif
 
-#include "../../core/debug_out.h"
+#if EITHER(LCD_PROGRESS_BAR_TEST, LCD_ENDSTOP_TEST)
+  #include "../lcdprint.h"
+  #define HAS_DEBUG_MENU 1
+#endif
 
-#define HAS_DEBUG_MENU ENABLED(LCD_PROGRESS_BAR_TEST)
+//#define DEBUG_OUT 1
+#include "../../core/debug_out.h"
 
 void menu_advanced_settings();
 #if EITHER(DELTA_CALIBRATION_MENU, DELTA_AUTO_CALIBRATION)
@@ -65,8 +73,6 @@ void menu_advanced_settings();
 #endif
 
 #if ENABLED(LCD_PROGRESS_BAR_TEST)
-
-  #include "../lcdprint.h"
 
   static void progress_bar_test() {
     static int8_t bar_percent = 0;
@@ -78,8 +84,8 @@ void menu_advanced_settings();
     bar_percent += (int8_t)ui.encoderPosition;
     LIMIT(bar_percent, 0, 100);
     ui.encoderPosition = 0;
-    MenuItem_static::draw(0, GET_TEXT(MSG_PROGRESS_BAR_TEST), SS_DEFAULT|SS_INVERT);
-    lcd_put_int((LCD_WIDTH) / 2 - 2, LCD_HEIGHT - 2, bar_percent); lcd_put_wchar('%');
+    MenuItem_static::draw(0, GET_TEXT_F(MSG_PROGRESS_BAR_TEST), SS_DEFAULT|SS_INVERT);
+    lcd_put_int((LCD_WIDTH) / 2 - 2, LCD_HEIGHT - 2, bar_percent); lcd_put_u8str(F("%"));
     lcd_moveto(0, LCD_HEIGHT - 1); ui.draw_progress_bar(bar_percent);
   }
 
@@ -90,6 +96,81 @@ void menu_advanced_settings();
 
 #endif // LCD_PROGRESS_BAR_TEST
 
+#if ENABLED(LCD_ENDSTOP_TEST)
+
+  #define __STOP_ITEM(F,S) PSTRING_ITEM_F_P(F, TEST(stops, S) ? PSTR(STR_ENDSTOP_HIT) : PSTR(STR_ENDSTOP_OPEN), SS_FULL)
+  #define _STOP_ITEM(L,S) __STOP_ITEM(F(L), S)
+  #define STOP_ITEM(A,I) _STOP_ITEM(STRINGIFY(A) STRINGIFY(I) " " TERN(A##_HOME_TO_MAX, "Max", "Min"), A##I##_ENDSTOP)
+  #define FIL_ITEM(N) PSTRING_ITEM_N_P(N-1, MSG_FILAMENT_EN, (READ(FIL_RUNOUT##N##_PIN) != FIL_RUNOUT##N##_STATE) ? PSTR("PRESENT") : PSTR("out"), SS_FULL);
+
+  static void endstop_test() {
+    if (ui.use_click()) {
+      ui.goto_previous_screen();
+      //endstops.enable_globally(false);
+      return;
+    }
+    TemporaryGlobalEndstopsState temp(true);
+    ui.defer_status_screen(true);
+    const Endstops::endstop_mask_t stops = endstops.state();
+
+    START_SCREEN();
+    STATIC_ITEM_F(GET_TEXT_F(MSG_ENDSTOP_TEST), SS_DEFAULT|SS_INVERT);
+
+    #if HAS_X_ENDSTOP
+      STOP_ITEM(X,);
+      #if ENABLED(X_DUAL_ENDSTOPS)
+        STOP_ITEM(X,2);
+      #endif
+    #endif
+    #if HAS_Y_ENDSTOP
+      STOP_ITEM(Y,);
+      #if ENABLED(Y_DUAL_ENDSTOPS)
+        STOP_ITEM(Y,2);
+      #endif
+    #endif
+    #if HAS_Z_ENDSTOP
+      STOP_ITEM(Z,);
+      #if ENABLED(Z_MULTI_ENDSTOPS)
+        STOP_ITEM(Z,2);
+        #if NUM_Z_STEPPERS >= 3
+          STOP_ITEM(Z,3);
+          #if NUM_Z_STEPPERS >= 4
+            STOP_ITEM(Z,4);
+          #endif
+        #endif
+      #endif
+    #endif
+    #if HAS_I_ENDSTOP
+      STOP_ITEM(I,);
+    #endif
+    #if HAS_J_ENDSTOP
+      STOP_ITEM(J,);
+    #endif
+    #if HAS_K_ENDSTOP
+      STOP_ITEM(K,);
+    #endif
+    #if HAS_U_ENDSTOP
+      STOP_ITEM(U,);
+    #endif
+    #if HAS_V_ENDSTOP
+      STOP_ITEM(V,);
+    #endif
+    #if HAS_W_ENDSTOP
+      STOP_ITEM(W,);
+    #endif
+    #if HAS_BED_PROBE && !HAS_DELTA_SENSORLESS_PROBING
+      __STOP_ITEM(GET_TEXT_F(MSG_Z_PROBE), Z_MIN_PROBE);
+    #endif
+    #if ENABLED(FILAMENT_RUNOUT_SENSOR)
+      REPEAT_1(NUM_RUNOUT_SENSORS, FIL_ITEM)
+    #endif
+
+    END_SCREEN();
+    ui.refresh(LCDVIEW_CALL_REDRAW_NEXT);
+  }
+
+#endif // LCD_ENDSTOP_TEST
+
 #if HAS_DEBUG_MENU
 
   void menu_debug() {
@@ -99,6 +180,10 @@ void menu_advanced_settings();
 
     #if ENABLED(LCD_PROGRESS_BAR_TEST)
       SUBMENU(MSG_PROGRESS_BAR_TEST, _progress_bar_test);
+    #endif
+
+    #if ENABLED(LCD_ENDSTOP_TEST)
+      SUBMENU(MSG_ENDSTOP_TEST, endstop_test);
     #endif
 
     END_MENU();
@@ -124,6 +209,7 @@ void menu_advanced_settings();
       EDIT_ITEM_FAST(int4, MSG_SINGLENOZZLE_UNRETRACT_SPEED, &toolchange_settings.unretract_speed, 10, 5400);
       EDIT_ITEM(float3, MSG_FILAMENT_PURGE_LENGTH, &toolchange_settings.extra_prime, 0, max_extrude);
       EDIT_ITEM_FAST(int4, MSG_SINGLENOZZLE_PRIME_SPEED, &toolchange_settings.prime_speed, 10, 5400);
+      EDIT_ITEM_FAST(int4, MSG_SINGLENOZZLE_WIPE_RETRACT, &toolchange_settings.wipe_retract, 0, 100);
       EDIT_ITEM_FAST(uint8, MSG_SINGLENOZZLE_FAN_SPEED, &toolchange_settings.fan_speed, 0, 255);
       EDIT_ITEM_FAST(uint8, MSG_SINGLENOZZLE_FAN_TIME, &toolchange_settings.fan_time, 1, 30);
     #endif
@@ -137,7 +223,7 @@ void menu_advanced_settings();
     #include "../../gcode/queue.h"
 
     void menu_toolchange_migration() {
-      PGM_P const msg_migrate = GET_TEXT(MSG_TOOL_MIGRATION_SWAP);
+      FSTR_P const msg_migrate = GET_TEXT_F(MSG_TOOL_MIGRATION_SWAP);
 
       START_MENU();
       BACK_ITEM(MSG_CONFIGURATION);
@@ -149,7 +235,7 @@ void menu_advanced_settings();
       // Migrate to a chosen extruder
       EXTRUDER_LOOP() {
         if (e != active_extruder) {
-          ACTION_ITEM_N_P(e, msg_migrate, []{
+          ACTION_ITEM_N_F(e, msg_migrate, []{
             char cmd[12];
             sprintf_P(cmd, PSTR("M217 T%i"), int(MenuItemBase::itemIndex));
             queue.inject(cmd);
@@ -160,7 +246,7 @@ void menu_advanced_settings();
     }
   #endif
 
-#endif
+#endif // HAS_MULTI_EXTRUDER
 
 #if HAS_HOTEND_OFFSET
   #include "../../module/motion.h"
@@ -199,16 +285,16 @@ void menu_advanced_settings();
     START_MENU();
     BACK_ITEM(MSG_CONFIGURATION);
 
-    GCODES_ITEM(MSG_IDEX_MODE_AUTOPARK,  PSTR("M605S1\nG28X\nG1X0"));
+    GCODES_ITEM(MSG_IDEX_MODE_AUTOPARK,  F("M605S1\nG28X\nG1X0"));
     GCODES_ITEM(MSG_IDEX_MODE_DUPLICATE, need_g28
-      ? PSTR("M605S1\nT0\nG28\nM605S2\nG28X\nG1X0")         // If Y or Z is not homed, do a full G28 first
-      : PSTR("M605S1\nT0\nM605S2\nG28X\nG1X0")
+      ? F("M605S1\nT0\nG28\nM605S2\nG28X\nG1X0")         // If Y or Z is not homed, do a full G28 first
+      : F("M605S1\nT0\nM605S2\nG28X\nG1X0")
     );
     GCODES_ITEM(MSG_IDEX_MODE_MIRRORED_COPY, need_g28
-      ? PSTR("M605S1\nT0\nG28\nM605S2\nG28X\nG1X0\nM605S3") // If Y or Z is not homed, do a full G28 first
-      : PSTR("M605S1\nT0\nM605S2\nG28 X\nG1X0\nM605S3")
+      ? F("M605S1\nT0\nG28\nM605S2\nG28X\nG1X0\nM605S3") // If Y or Z is not homed, do a full G28 first
+      : F("M605S1\nT0\nM605S2\nG28 X\nG1X0\nM605S3")
     );
-    GCODES_ITEM(MSG_IDEX_MODE_FULL_CTRL, PSTR("M605S0\nG28X"));
+    GCODES_ITEM(MSG_IDEX_MODE_FULL_CTRL, F("M605S0\nG28X"));
 
     EDIT_ITEM(float42_52, MSG_IDEX_DUPE_GAP, &duplicate_extruder_x_offset, (X2_MIN_POS) - (X1_MIN_POS), (X_BED_SIZE) - 20);
 
@@ -242,15 +328,15 @@ void menu_advanced_settings();
     ACTION_ITEM(MSG_BLTOUCH_DEPLOY, bltouch._deploy);
     ACTION_ITEM(MSG_BLTOUCH_STOW, bltouch._stow);
     ACTION_ITEM(MSG_BLTOUCH_SW_MODE, bltouch._set_SW_mode);
-    #ifdef BLTOUCH_HS_MODE
+    #if HAS_BLTOUCH_HS_MODE
       EDIT_ITEM(bool, MSG_BLTOUCH_SPEED_MODE, &bltouch.high_speed_mode);
     #endif
     #if ENABLED(BLTOUCH_LCD_VOLTAGE_MENU)
-      CONFIRM_ITEM(MSG_BLTOUCH_5V_MODE, MSG_BLTOUCH_5V_MODE, MSG_BUTTON_CANCEL, bltouch._set_5V_mode, nullptr, GET_TEXT(MSG_BLTOUCH_MODE_CHANGE));
-      CONFIRM_ITEM(MSG_BLTOUCH_OD_MODE, MSG_BLTOUCH_OD_MODE, MSG_BUTTON_CANCEL, bltouch._set_OD_mode, nullptr, GET_TEXT(MSG_BLTOUCH_MODE_CHANGE));
+      CONFIRM_ITEM(MSG_BLTOUCH_5V_MODE, MSG_BLTOUCH_5V_MODE, MSG_BUTTON_CANCEL, bltouch._set_5V_mode, nullptr, GET_TEXT_F(MSG_BLTOUCH_MODE_CHANGE));
+      CONFIRM_ITEM(MSG_BLTOUCH_OD_MODE, MSG_BLTOUCH_OD_MODE, MSG_BUTTON_CANCEL, bltouch._set_OD_mode, nullptr, GET_TEXT_F(MSG_BLTOUCH_MODE_CHANGE));
       ACTION_ITEM(MSG_BLTOUCH_MODE_STORE, bltouch._mode_store);
-      CONFIRM_ITEM(MSG_BLTOUCH_MODE_STORE_5V, MSG_BLTOUCH_MODE_STORE_5V, MSG_BUTTON_CANCEL, bltouch.mode_conv_5V, nullptr, GET_TEXT(MSG_BLTOUCH_MODE_CHANGE));
-      CONFIRM_ITEM(MSG_BLTOUCH_MODE_STORE_OD, MSG_BLTOUCH_MODE_STORE_OD, MSG_BUTTON_CANCEL, bltouch.mode_conv_OD, nullptr, GET_TEXT(MSG_BLTOUCH_MODE_CHANGE));
+      CONFIRM_ITEM(MSG_BLTOUCH_MODE_STORE_5V, MSG_BLTOUCH_MODE_STORE_5V, MSG_BUTTON_CANCEL, bltouch.mode_conv_5V, nullptr, GET_TEXT_F(MSG_BLTOUCH_MODE_CHANGE));
+      CONFIRM_ITEM(MSG_BLTOUCH_MODE_STORE_OD, MSG_BLTOUCH_MODE_STORE_OD, MSG_BUTTON_CANCEL, bltouch.mode_conv_OD, nullptr, GET_TEXT_F(MSG_BLTOUCH_MODE_CHANGE));
       ACTION_ITEM(MSG_BLTOUCH_MODE_ECHO, bltouch_report);
     #endif
     END_MENU();
@@ -264,10 +350,10 @@ void menu_advanced_settings();
     ui.defer_status_screen();
     START_MENU();
     BACK_ITEM(MSG_CONFIGURATION);
-    GCODES_ITEM(MSG_TOUCHMI_INIT, PSTR("M851 Z0\nG28\nG1 F200 Z0"));
+    GCODES_ITEM(MSG_TOUCHMI_INIT, F("M851 Z0\nG28\nG1 F200 Z0"));
     SUBMENU(MSG_ZPROBE_ZOFFSET, lcd_babystep_zoffset);
-    GCODES_ITEM(MSG_TOUCHMI_SAVE, PSTR("M500\nG1 F200 Z10"));
-    GCODES_ITEM(MSG_TOUCHMI_ZTEST, PSTR("G28\nG1 F200 Z0"));
+    GCODES_ITEM(MSG_TOUCHMI_SAVE, F("M500\nG1 F200 Z10"));
+    GCODES_ITEM(MSG_TOUCHMI_ZTEST, F("G28\nG1 F200 Z0"));
     END_MENU();
   }
 
@@ -329,7 +415,7 @@ void menu_advanced_settings();
     #define MAXTEMP_ALL _MAX(REPEAT(HOTENDS, _MAXTEMP_ITEM) 0)
     const uint8_t m = MenuItemBase::itemIndex;
     START_MENU();
-    STATIC_ITEM_P(ui.get_preheat_label(m), SS_DEFAULT|SS_INVERT);
+    STATIC_ITEM_F(ui.get_preheat_label(m), SS_DEFAULT|SS_INVERT);
     BACK_ITEM(MSG_CONFIGURATION);
     #if HAS_FAN
       editable.uint8 = uint8_t(ui.material_preset[m].fan_speed);
@@ -359,7 +445,7 @@ void menu_advanced_settings();
 
   void custom_menus_configuration() {
     START_MENU();
-    BACK_ITEM(MSG_MAIN);
+    BACK_ITEM(MSG_MAIN_MENU);
 
     #define HAS_CUSTOM_ITEM_CONF(N) (defined(CONFIG_MENU_ITEM_##N##_DESC) && defined(CONFIG_MENU_ITEM_##N##_GCODE))
 
@@ -369,13 +455,13 @@ void menu_advanced_settings();
       #define _DONE_SCRIPT ""
     #endif
     #define GCODE_LAMBDA_CONF(N) []{ _lcd_custom_menus_configuration_gcode(F(CONFIG_MENU_ITEM_##N##_GCODE _DONE_SCRIPT)); }
-    #define _CUSTOM_ITEM_CONF(N) ACTION_ITEM_P(PSTR(CONFIG_MENU_ITEM_##N##_DESC), GCODE_LAMBDA_CONF(N));
-    #define _CUSTOM_ITEM_CONF_CONFIRM(N)               \
-      SUBMENU_P(PSTR(CONFIG_MENU_ITEM_##N##_DESC), []{ \
-          MenuItem_confirm::confirm_screen(            \
-            GCODE_LAMBDA_CONF(N), nullptr,             \
-            PSTR(CONFIG_MENU_ITEM_##N##_DESC "?")      \
-          );                                           \
+    #define _CUSTOM_ITEM_CONF(N) ACTION_ITEM_F(F(CONFIG_MENU_ITEM_##N##_DESC), GCODE_LAMBDA_CONF(N));
+    #define _CUSTOM_ITEM_CONF_CONFIRM(N)            \
+      SUBMENU_F(F(CONFIG_MENU_ITEM_##N##_DESC), []{ \
+          MenuItem_confirm::confirm_screen(         \
+            GCODE_LAMBDA_CONF(N), nullptr,          \
+            F(CONFIG_MENU_ITEM_##N##_DESC "?")      \
+          );                                        \
         })
 
     #define CUSTOM_ITEM_CONF(N) do{ \
@@ -471,7 +557,7 @@ void menu_configuration() {
   const bool busy = printer_busy();
 
   START_MENU();
-  BACK_ITEM(MSG_MAIN);
+  BACK_ITEM(MSG_MAIN_MENU);
 
   //
   // Debug Menu when certain options are enabled
@@ -483,7 +569,7 @@ void menu_configuration() {
   #if ENABLED(CUSTOM_MENU_CONFIG)
     if (TERN1(CUSTOM_MENU_CONFIG_ONLY_IDLE, !busy)) {
       #ifdef CUSTOM_MENU_CONFIG_TITLE
-        SUBMENU_P(PSTR(CUSTOM_MENU_CONFIG_TITLE), custom_menus_configuration);
+        SUBMENU_F(F(CUSTOM_MENU_CONFIG_TITLE), custom_menus_configuration);
       #else
         SUBMENU(MSG_CUSTOM_COMMANDS, custom_menus_configuration);
       #endif
@@ -547,10 +633,10 @@ void menu_configuration() {
   //
   // Set display backlight / sleep timeout
   //
-  #if LCD_BACKLIGHT_TIMEOUT && LCD_BKL_TIMEOUT_MIN < LCD_BKL_TIMEOUT_MAX
-    EDIT_ITEM(uint16_4, MSG_LCD_TIMEOUT_SEC, &ui.lcd_backlight_timeout, LCD_BKL_TIMEOUT_MIN, LCD_BKL_TIMEOUT_MAX, ui.refresh_backlight_timeout);
+  #if LCD_BACKLIGHT_TIMEOUT_MINS
+    EDIT_ITEM(uint8, MSG_SCREEN_TIMEOUT, &ui.backlight_timeout_minutes, ui.backlight_timeout_min, ui.backlight_timeout_max, ui.refresh_backlight_timeout);
   #elif HAS_DISPLAY_SLEEP
-    EDIT_ITEM(uint8, MSG_SCREEN_TIMEOUT, &ui.sleep_timeout_minutes, SLEEP_TIMEOUT_MIN, SLEEP_TIMEOUT_MAX, ui.refresh_screen_timeout);
+    EDIT_ITEM(uint8, MSG_SCREEN_TIMEOUT, &ui.sleep_timeout_minutes, ui.sleep_timeout_min, ui.sleep_timeout_max, ui.refresh_screen_timeout);
   #endif
 
   #if ENABLED(FWRETRACT)
@@ -572,7 +658,7 @@ void menu_configuration() {
   // Preheat configurations
   #if HAS_PREHEAT && DISABLED(SLIM_LCD_MENUS)
     LOOP_L_N(m, PREHEAT_COUNT)
-      SUBMENU_N_S(m, ui.get_preheat_label(m), MSG_PREHEAT_M_SETTINGS, _menu_configuration_preheat_settings);
+      SUBMENU_N_f(m, ui.get_preheat_label(m), MSG_PREHEAT_M_SETTINGS, _menu_configuration_preheat_settings);
   #endif
 
   #if ENABLED(SOUND_MENU_ITEM)
