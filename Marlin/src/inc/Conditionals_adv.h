@@ -302,6 +302,21 @@
   #endif
 #endif
 
+// Use Junction Deviation for motion if Jerk is disabled
+#if DISABLED(CLASSIC_JERK)
+  #define HAS_JUNCTION_DEVIATION 1
+#endif
+
+// E jerk exists with JD disabled (of course) but also when Linear Advance is disabled on Delta/SCARA
+#if HAS_EXTRUDERS && (ENABLED(CLASSIC_JERK) || (IS_KINEMATIC && DISABLED(LIN_ADVANCE)))
+  #define HAS_CLASSIC_E_JERK 1
+#endif
+
+// Linear advance uses Jerk since E is an isolated axis
+#if ALL(HAS_JUNCTION_DEVIATION, LIN_ADVANCE)
+  #define HAS_LINEAR_E_JERK 1
+#endif
+
 /**
  * Temperature Sensors; define what sensor(s) we have.
  */
@@ -1262,7 +1277,7 @@
 #if LCD_IS_SERIAL_HOST && !defined(LCD_SERIAL_PORT)
   #if MB(BTT_SKR_MINI_E3_V1_0, BTT_SKR_MINI_E3_V1_2, BTT_SKR_MINI_E3_V2_0, BTT_SKR_MINI_E3_V3_0, BTT_SKR_MINI_E3_V3_0_1, BTT_SKR_E3_TURBO, BTT_OCTOPUS_V1_1, AQUILA_V101)
     #define LCD_SERIAL_PORT 1
-  #elif MB(CREALITY_V24S1_301, CREALITY_V24S1_301F4, CREALITY_F401RE, CREALITY_V423, MKS_ROBIN, PANOWIN_CUTLASS, KODAMA_BARDO)
+  #elif MB(CREALITY_V24S1_301, CREALITY_V24S1_301F4, CREALITY_F401RE, CREALITY_V423, CREALITY_CR4NTXXC10, MKS_ROBIN, PANOWIN_CUTLASS, KODAMA_BARDO)
     #define LCD_SERIAL_PORT 2
   #else
     #define LCD_SERIAL_PORT 3
